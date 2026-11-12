@@ -76,6 +76,9 @@ jobs:
         run: |
           # If the build fails with a missing Metal toolchain component, try:
           #   xcodebuild -downloadComponent MetalToolchain
+          # pipefail: without it the pipeline's exit code is tee's, and a
+          # failed xcodebuild would falsely report success (run #2).
+          set -o pipefail
           xcodebuild -project Ruxel.xcodeproj -scheme Ruxel -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
@@ -88,6 +91,13 @@ jobs:
 
       - name: Package IPA
         run: |
+          # Fail loudly if the build did not produce an executable (run #2
+          # packaged an empty bundle because this check did not exist).
+          if [ ! -f build/Build/Products/Release-iphoneos/Ruxel.app/Ruxel ]; then
+            echo "ERROR: Ruxel.app executable missing — the build did not produce an app"
+            ls build/Build/Products/Release-iphoneos/ || true
+            exit 1
+          fi
           mkdir Payload
           cp -R build/Build/Products/Release-iphoneos/Ruxel.app Payload/
           zip -qry App.ipa Payload
