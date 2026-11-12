@@ -251,7 +251,9 @@ final class RenderGraph {
         values.withUnsafeBytes { bytes in
             guard let baseAddress = bytes.baseAddress else { return }
             buffer.contents().copyMemory(from: baseAddress, byteCount: bytes.count)
-            buffer.didModifyRange(0..<bytes.count)
+            // NOTE: no didModifyRange call — the buffers are
+            // .storageModeShared, which never needs it, and the call is
+            // unavailable on iOS.
         }
     }
 
@@ -260,7 +262,7 @@ final class RenderGraph {
         withUnsafeBytes(of: &value) { bytes in
             guard let baseAddress = bytes.baseAddress else { return }
             buffer.contents().copyMemory(from: baseAddress, byteCount: 4)
-            buffer.didModifyRange(0..<4)
+            // NOTE: no didModifyRange call — see write(_:to:) above.
         }
     }
 }
