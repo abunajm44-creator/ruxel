@@ -1,0 +1,68 @@
+# Ruxel — XcodeGen project definition.
+# Generate with: xcodegen generate (never hand-edit the .pbxproj).
+# App target only; EditorCore is a local Swift package.
+name: Ruxel
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  bundleIdPrefix: com.abunajm44creator
+  createIntermediateGroups: true
+packages:
+  EditorCore:
+    path: Packages/EditorCore
+targets:
+  Ruxel:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: App/Sources
+        includes:
+          - "**/*.swift"
+          - "**/*.metal"
+    resources:
+      - path: App/Resources/en.lproj
+      - path: App/Resources/ar.lproj
+      - path: App/Resources/Assets.xcassets
+    dependencies:
+      - package: EditorCore
+    settings:
+      base:
+        PRODUCT_NAME: Ruxel
+        PRODUCT_BUNDLE_IDENTIFIER: com.abunajm44creator.ruxel
+        SWIFT_VERSION: "5.0"
+        SWIFT_LANGUAGE_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: "NO"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
+        INFOPLIST_KEY_UILaunchStoryboardName: ""
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: "RUXEL needs access to your photos so you can choose a photo to retouch."
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: "RUXEL needs permission to save your retouched photos to your photo library."
+        INFOPLIST_KEY_NSCameraUsageDescription: "RUXEL needs camera access so you can take a photo to retouch."
+        INFOPLIST_KEY_CFBundleDisplayName: RUXEL
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.photography
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    info:
+      path: App/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: RUXEL
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchStoryboardName: ""
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSPhotoLibraryUsageDescription: "RUXEL needs access to your photos so you can choose a photo to retouch."
+        NSPhotoLibraryAddUsageDescription: "RUXEL needs permission to save your retouched photos to your photo library."
+        NSCameraUsageDescription: "RUXEL needs camera access so you can take a photo to retouch."
+        CFBundleLocalizations:
+          - en
+          - ar
+        CFBundleDevelopmentRegion: en
+# NOTE — App icon: placeholder only. App/Resources/Assets.xcassets/AppIcon.appiconset
+# currently holds a Contents.json placeholder; replace with real 1024x1024 artwork
+# before any TestFlight / App Store build. Do not ship the placeholder.
