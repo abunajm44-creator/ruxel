@@ -1,0 +1,118 @@
+# Ruxel — CI build
+#
+# Builds EditorCore tests on Linux, then the iOS app on macOS and uploads an
+# UNSIGNED .ipa. `main` only ever receives green builds; day-to-day work
+# happens on `work`.
+name: build
+
+on:
+  push:
+    branches: [main, work]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-tests:
+    name: EditorCore tests (Linux)
+    runs-on: ubuntu-latest
+    # Pinned real tag, verified against Docker Hub (hub.docker.com/_/swift):
+    # 6.1.3-noble exists (Swift 6.1.3 on Ubuntu 24.04 "noble"). Do NOT use
+    # swift:latest — an unpinned tag silently changes the toolchain.
+    container: swift:6.1.3-noble
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run EditorCore tests
+        run: cd Packages/EditorCore && swift test
+
+  ios:
+    name: iOS build + unsigned IPA
+    needs: core-tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest stable Xcode
+        run: |
+          ls /Applications | grep -i xcode
+          X=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $X"
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+          system_profiler SPDisplaysDataType | head -30
+
+      # Runner capability probe: the macOS runner may have NO GPU, in which
+      # case MTLCreateSystemDefaultDevice() returns nil and no shader can ever
+      # run in CI. This step records the fact honestly. It is a standalone
+      # probe program (continue-on-error: it must never fail the build) until
+      # the app has a real XCTest target, at which point this becomes a proper
+      # test (TODO: move into AppTests as a MetalDeviceAvailability test).
+      - name: Runner capability probe (Metal device?)
+        continue-on-error: true
+        run: |
+          cat > /tmp/metal_probe.swift <<'SWIFT'
+          import Metal
+          if let device = MTLCreateSystemDefaultDevice() {
+            print("METAL_PROBE device=\(device.name) non-nil=true")
+          } else {
+            print("METAL_PROBE device=nil non-nil=false (runner has no GPU)")
+          }
+          SWIFT
+          swiftc -framework Metal /tmp/metal_probe.swift -o /tmp/metal_probe && /tmp/metal_probe
+
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build (Release, unsigned)
+        run: |
+          # If the build fails with a missing Metal toolchain component, try:
+          #   xcodebuild -downloadComponent MetalToolchain
+          # pipefail: without it the pipeline's exit code is tee's, and a
+          # failed xcodebuild would falsely report success (run #2).
+          set -o pipefail
+          xcodebuild -project Ruxel.xcodeproj -scheme Ruxel -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            clean build | tee build.log
+
+      - name: Show errors on failure
+        if: failure()
+        run: grep -E "error:" build.log | sort -u | head -60
+
+      - name: Package IPA
+        run: |
+          # Fail loudly if the build did not produce an executable (run #2
+          # packaged an empty bundle because this check did not exist).
+          if [ ! -f build/Build/Products/Release-iphoneos/Ruxel.app/Ruxel ]; then
+            echo "ERROR: Ruxel.app executable missing — the build did not produce an app"
+            ls build/Build/Products/Release-iphoneos/ || true
+            exit 1
+          fi
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Ruxel.app Payload/
+          zip -qry App.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-ipa
+          path: App.ipa
+
+      - name: Release on main
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" App.ipa \
+            --title "Build ${{ github.run_number }}" \
+            --notes "Unsigned IPA"

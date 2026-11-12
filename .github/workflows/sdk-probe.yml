@@ -1,0 +1,43 @@
+# Ruxel — SDK probe
+#
+# Batch-verifies Apple API signatures against the REAL iOS SDK headers before
+# any code is written from memory (the zero-guess rule). One macOS run costs
+# at least 1 minute x10, so batch ALL questions into ONE probe run:
+# pass the framework and a list of regexes separated by |||.
+#
+# Example dispatch:
+#   framework: Vision
+#   patterns: VNDetectFaceLandmarksRequest|||VNFaceLandmarkRegion2D|||VNGeneratePersonSegmentationRequest
+name: sdk-probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      framework:
+        description: "Framework to search (e.g. Vision, Metal, PhotosUI, VisionKit)"
+        required: true
+        default: Vision
+      patterns:
+        description: "Regexes to grep for, separated by |||"
+        required: true
+
+jobs:
+  probe:
+    name: Probe ${{ inputs.framework }} SDK headers
+    runs-on: macos-15
+    steps:
+      - name: Grep SDK headers
+        env:
+          FW: ${{ inputs.framework }}
+          PATS: ${{ inputs.patterns }}
+        run: |
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          DIR=$SDK/System/Library/Frameworks/$FW.framework
+          echo "SDK: $SDK"
+          echo "Framework dir: $DIR"
+          ls "$DIR" || echo "WARNING: framework dir not found: $DIR"
+          echo "$PATS" | tr -s '|' '\n' | while read -r p; do
+            [ -z "$p" ] && continue
+            echo "=== $p ==="
+            grep -rn -E "$p" "$DIR" --include=*.h --include=*.swiftinterface | head -40
+          done

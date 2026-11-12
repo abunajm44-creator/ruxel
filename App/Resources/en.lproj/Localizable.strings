@@ -1,0 +1,227 @@
+/* Ruxel — English strings. Every UI label has an Arabic twin in ar.lproj. */
+
+"common.ok" = "OK";
+"common.cancel" = "Cancel";
+"common.back" = "Back";
+"common.done" = "Done";
+
+"home.title" = "RUXEL";
+"home.import" = "Import a photo";
+"home.empty.title" = "No projects yet";
+"home.empty.body" = "Import a photo to start retouching. Your projects will appear here.";
+"home.openProject" = "Open project";
+
+"onboarding.1.title" = "Reshape faces, naturally";
+"onboarding.1.body" = "Eyes, nose, lips, brows and face — gentle sliders that keep you looking like you.";
+"onboarding.2.title" = "One-tap retouch";
+"onboarding.2.body" = "Auto smooths skin, removes shine and brightens eyes in a single tap.";
+"onboarding.3.title" = "Export in full quality";
+"onboarding.3.body" = "Save to Photos or share in HEIC, JPEG or PNG — your original is never changed.";
+"onboarding.start" = "Start";
+
+"error.title" = "Something went wrong";
+
+"tool.brush" = "Brush";
+"tool.teeth" = "Teeth";
+"tool.auto" = "Auto";
+"tool.makeup" = "Makeup";
+"tool.face" = "Face";
+"tool.slim" = "Slim";
+"tool.bodySculpt" = "Body sculpt";
+"tool.smoothing" = "Smoothing";
+"tool.skin" = "Skin";
+"tool.wrinkles" = "Wrinkles";
+"tool.lift" = "Lift";
+"tool.colorBrush" = "Colour brush";
+"tool.acne" = "Acne";
+"tool.shine" = "Shine";
+"tool.head" = "Head";
+"tool.eyes" = "Eyes";
+"tool.darkCircles" = "Dark circles";
+"tool.hair" = "Hair";
+"tool.eraser" = "Eraser";
+
+"face.tab.threeD" = "3D";
+"face.tab.face" = "Face";
+"face.tab.brows" = "Brows";
+"face.tab.eyes" = "Eyes";
+"face.tab.nose" = "Nose";
+"face.tab.lips" = "Lips";
+"face.threeD.body" = "Pose-aware reshape uses the detected face angle. Drag gently — small changes look best.";
+
+"face.slider.eyeSize" = "Size";
+"face.slider.eyeHeight" = "Height";
+"face.slider.eyeWidth" = "Width";
+"face.slider.eyeLength" = "Length";
+"face.slider.eyeDistance" = "Distance";
+"face.slider.eyePuffy" = "Puffy eyes";
+"face.slider.eyeAngle" = "Angle";
+"face.slider.eyePosition" = "Position";
+"face.slider.noseSize" = "Size";
+"face.slider.noseLift" = "Lift";
+"face.slider.noseAla" = "Nostrils";
+"face.slider.noseRoot" = "Root";
+"face.slider.noseBridge" = "Bridge";
+"face.slider.noseTip" = "Tip";
+"face.slider.lipSize" = "Size";
+"face.slider.lipWidth" = "Width";
+"face.slider.lipThickness" = "Thickness";
+"face.slider.lipSmile" = "Smile";
+"face.slider.lipPosition" = "Position";
+"face.slider.lipShape" = "M-shape";
+"face.slider.browHeight" = "Height";
+"face.slider.browDistance" = "Distance";
+"face.slider.browThickness" = "Thickness";
+"face.slider.browAngle" = "Angle";
+"face.slider.browLength" = "Length";
+"face.slider.browShape" = "Shape";
+"face.slider.faceWidth" = "Width";
+"face.slider.jaw" = "Jaw";
+"face.slider.chin" = "Chin";
+"face.slider.chinWidth" = "Chin width";
+"face.slider.cheekbones" = "Cheekbones";
+"face.slider.temples" = "Temples";
+"face.slider.forehead" = "Forehead";
+"face.slider.faceLength" = "Face length";
+"face.slider.faceVShape" = "V-shape";
+"face.slider.yawAttenuation" = "Yaw holdback";
+"face.slider.pitchAttenuation" = "Pitch holdback";
+"face.slider.rollAttenuation" = "Roll holdback";
+
+"skin.auto" = "Auto retouch";
+"skin.smoothing" = "Smoothing";
+"skin.texture" = "Texture";
+"skin.grain" = "Grain";
+"skin.wrinkles" = "Wrinkles";
+"skin.acne" = "Acne";
+"skin.shine" = "Shine";
+"skin.darkCircles" = "Dark circles";
+"skin.teeth" = "Teeth whitening";
+"skin.eyeEnhance" = "Eye enhance";
+
+"body.manual" = "Manual";
+"body.auto" = "Auto";
+"body.brushMode" = "Brush mode";
+"body.classic" = "Classic";
+"body.fast" = "Fast";
+"body.restore" = "Restore";
+"body.size" = "Size";
+"body.manualHint" = "Paint over the area to reshape it. Restore erases your strokes.";
+"body.slim" = "Slim";
+"body.waist" = "Waist";
+"body.hips" = "Hips";
+"body.legsLength" = "Legs length";
+"body.shoulders" = "Shoulders";
+"body.neck" = "Neck";
+
+"editor.compare" = "Compare";
+"editor.backgroundLock" = "Lock background";
+"editor.distortionCorrection" = "Fix distortion";
+"editor.distortionHelp" = "Fixes the slight stretch photos get near the frame edge. Works when a face or body is found.";
+"editor.version" = "RUXEL 0.1.0";
+"editor.noFace" = "No face found in this photo. Face tools are off; manual tools still work.";
+"editor.comingSoon" = "This tool is coming soon.";
+"editor.cancel" = "Cancel";
+"editor.apply" = "Apply";
+"editor.scope" = "Scope";
+"editor.scope.general" = "General";
+"editor.scope.left" = "Left";
+"editor.scope.right" = "Right";
+
+"debug.title" = "Diagnostics";
+"debug.fps" = "Frames per second";
+"debug.renderMs" = "Render time (ms)";
+"debug.memory" = "Memory";
+"debug.landmarks" = "Show landmarks";
+"debug.masks" = "Show masks";
+"debug.field" = "Show warp field";
+"debug.copyLog" = "Copy log";
+"debug.copied" = "Log copied";
+"debug.close" = "Close";
+
+
+"makeup.lips" = "Lips";
+"makeup.blush" = "Blush";
+"makeup.shadow" = "Eye shadow";
+"makeup.liner" = "Eyeliner";
+"makeup.brows" = "Brows";
+"makeup.color" = "Colour";
+"makeup.intensity" = "Intensity";
+"makeup.finish" = "Finish";
+"makeup.finish.matte" = "Matte";
+"makeup.finish.satin" = "Satin";
+"makeup.finish.glossy" = "Glossy";
+"makeup.pending" = "Makeup is saved and will appear on the photo once the makeup render pass lands.";
+
+"colorBrush.color" = "Colour";
+"colorBrush.intensity" = "Intensity";
+"colorBrush.size" = "Brush size";
+"colorBrush.hint" = "Paint on the photo to colour the area. Zoom is paused while painting.";
+"colorBrush.clear" = "Clear strokes";
+
+"head.size" = "Head size";
+"head.shape" = "Head shape";
+"head.note" = "Head warp radii are in inter-pupil-distance units; the mapping lands in EditorCore with the head engine.";
+
+"lift.lift" = "Lift";
+"lift.tighten" = "Tighten";
+"lift.note" = "Gentle lift and tightening for face and neck. Small changes look best.";
+
+"editor.distortionStrength" = "Distortion strength";
+"editor.facePicker" = "Face";
+
+"face.threeD.depth" = "3D depth";
+"face.threeD.farSide" = "Far-side attenuation";
+"face.threeD.attenuation" = "Warping is attenuated on the far side of the face from the detected yaw, pitch and roll, so 3/4 views stay natural.";
+
+"eraser.size" = "Brush size";
+"eraser.hint" = "Paint over the object you want to remove. Zoom is paused while painting.";
+"eraser.clearMask" = "Clear mask";
+"eraser.apply" = "Remove";
+"eraser.pending" = "The removal engine (PatchMatch inpainting) is not built yet — the mask is saved, and Remove stays off until the engine lands.";
+
+"hair.color" = "Hair colour";
+"hair.volume" = "Volume";
+"hair.flyaway" = "Flyaway smoothing";
+"hair.unavailable" = "No hair mask is available for this photo yet — the hair tool is experimental and stays off until a hair mask is available.";
+
+"sparkle.style" = "Style";
+"sparkle.style.glow" = "Glow";
+"sparkle.style.glitter" = "Glitter";
+"sparkle.style.star" = "Stars";
+"sparkle.size" = "Brush size";
+"sparkle.intensity" = "Intensity";
+"sparkle.hint" = "Paint on the photo to add sparkle. Zoom is paused while painting.";
+"sparkle.clear" = "Clear strokes";
+
+"crop.rotation" = "Rotation";
+"crop.aspect" = "Aspect ratio";
+"crop.aspect.free" = "Free";
+"crop.aspect.square" = "Square 1:1";
+"crop.aspect.portrait" = "Portrait 4:5";
+"crop.aspect.wide" = "Wide 16:9";
+"crop.aspect.classic" = "Classic 3:2";
+"crop.note" = "Rotation and aspect are saved; on-canvas crop framing arrives with the export pass.";
+
+"adjust.exposure" = "Exposure";
+"adjust.contrast" = "Contrast";
+"adjust.saturation" = "Saturation";
+"adjust.warmth" = "Warmth";
+"adjust.note" = "Basic adjustments are saved and will apply once the colour pass lands.";
+
+"filter.preset" = "Filter";
+"filter.none" = "None";
+"filter.vivid" = "Vivid";
+"filter.warm" = "Warm";
+"filter.cool" = "Cool";
+"filter.mono" = "Mono";
+"filter.fade" = "Faded";
+"filter.intensity" = "Intensity";
+"filter.note" = "Filters are simple colour tweaks (saturation, contrast, warmth) applied once the colour pass lands.";
+
+"tool.cropRotate" = "Crop & rotate";
+"tool.basicAdjust" = "Basic adjust";
+"tool.filters" = "Filters";
+
+"editor.export" = "Export";
+"editor.exportDone" = "Your photo is ready to share.";
