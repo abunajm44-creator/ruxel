@@ -20,10 +20,20 @@ targets:
         includes:
           - "**/*.swift"
           - "**/*.metal"
-    resources:
-      - App/Resources/en.lproj
-      - App/Resources/ar.lproj
-      - App/Resources/Assets.xcassets
+      # NOTE: XcodeGen has NO top-level `resources:` key on a target —
+      # unknown keys are silently ignored, which is why the asset catalog
+      # and .lproj files never reached the bundle (runs #3–#6). Resources
+      # are declared here, under `sources:` — XcodeGen guesses the build
+      # phase from the file extension, and `buildPhase: resources` makes
+      # it explicit. `.xcassets` compiles to Assets.car; `.lproj` dirs
+      # are copied as localization folders; Info.plist is never added
+      # to a build phase (it is the target's `info.path` instead).
+      - path: App/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: App/Resources/en.lproj
+        buildPhase: resources
+      - path: App/Resources/ar.lproj
+        buildPhase: resources
     dependencies:
       - package: EditorCore
     settings:
