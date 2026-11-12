@@ -1,4 +1,5 @@
 import SwiftUI
+import EditorCore
 
 // CropRotateView — crop / rotate (baseline extra).
 // What: rotation slider (-45...45 degrees) + aspect-ratio picker; values
@@ -25,11 +26,11 @@ struct CropRotateView: View {
             Text("crop.aspect")
                 .font(.subheadline)
             Picker("", selection: aspectBinding) {
-                Text("crop.aspect.free").tag(ExtraAdjustments.CropAspect.free)
-                Text("crop.aspect.square").tag(ExtraAdjustments.CropAspect.square)
-                Text("crop.aspect.portrait").tag(ExtraAdjustments.CropAspect.portrait)
-                Text("crop.aspect.wide").tag(ExtraAdjustments.CropAspect.wide)
-                Text("crop.aspect.classic").tag(ExtraAdjustments.CropAspect.classic)
+                Text("crop.aspect.free").tag(CropAspect.free)
+                Text("crop.aspect.square").tag(CropAspect.square)
+                Text("crop.aspect.portrait").tag(CropAspect.portrait)
+                Text("crop.aspect.wide").tag(CropAspect.wide)
+                Text("crop.aspect.classic").tag(CropAspect.classic)
             }
             .pickerStyle(.segmented)
             .frame(minHeight: 44)
@@ -40,7 +41,7 @@ struct CropRotateView: View {
         }
     }
 
-    private var aspectBinding: Binding<ExtraAdjustments.CropAspect> {
+    private var aspectBinding: Binding<CropAspect> {
         Binding(
             get: { viewModel.extras.cropAspect },
             set: { newAspect in

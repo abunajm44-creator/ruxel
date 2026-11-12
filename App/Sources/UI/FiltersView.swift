@@ -1,4 +1,5 @@
 import SwiftUI
+import EditorCore
 
 // FiltersView — filter presets (baseline extra).
 // What: preset chips + intensity; each preset is a simple, honest
@@ -45,7 +46,7 @@ struct FiltersView: View {
                     get: { viewModel.extras.filterIntensity },
                     set: { newValue in
                         viewModel.updateExtras { $0.filterIntensity = newValue }
-                        viewModel.renderGraph?.markSourceSpaceDirty()
+                        viewModel.renderGraph?.markColorDirty()
                     }
                 ),
                 range: 0...100,
@@ -61,7 +62,7 @@ struct FiltersView: View {
         }
     }
 
-    private func selectPreset(_ preset: ExtraAdjustments.FilterPreset) {
+    private func selectPreset(_ preset: FilterPreset) {
         viewModel.beginChange()
         viewModel.updateExtras { extras in
             extras.filterPreset = preset
@@ -71,7 +72,7 @@ struct FiltersView: View {
                 extras.filterIntensity = 60
             }
         }
-        viewModel.renderGraph?.markSourceSpaceDirty()
+        viewModel.renderGraph?.markColorDirty()
         viewModel.endChange()
     }
 
@@ -86,7 +87,7 @@ struct FiltersView: View {
 
         var id: String { rawValue }
         var titleKey: String { "filter.\(rawValue)" }
-        var value: ExtraAdjustments.FilterPreset {
+        var value: FilterPreset {
             switch self {
             case .none: return .none
             case .vivid: return .vivid

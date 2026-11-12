@@ -35,11 +35,18 @@ struct CanvasView: UIViewRepresentable {
     func updateUIView(_ uiView: MTKView, context: Context) {
         let coordinator = context.coordinator
         coordinator.bridge.state = viewModel.state
+        coordinator.bridge.extras = viewModel.extras
         coordinator.bridge.isComparing = viewModel.isComparing
         coordinator.bridge.graph = viewModel.renderGraph
         coordinator.bridge.landmarks = viewModel.landmarks
         coordinator.bridge.bodyPose = viewModel.bodyPose
         coordinator.bridge.setPersonMask(from: viewModel.personMaskPixelBuffer)
+        // The canvas size drives the paint overlay (photo rect + brush
+        // circularity); rebuild the overlay when it changes.
+        if viewModel.canvasSize != uiView.bounds.size {
+            viewModel.canvasSize = uiView.bounds.size
+            viewModel.rebuildOverlayIfNeeded()
+        }
         // Brush is armed only in Body manual mode; arming disables the
         // navigation gestures so a drag stamps a stroke instead of panning.
         let brushArmed = viewModel.isBrushActive
@@ -232,6 +239,7 @@ final class RenderBridge {
     let context: MetalContext?
     var graph: RenderGraph?
     var state = RetouchState()
+    var extras = ExtraAdjustments()
     var isComparing = false
     var landmarks: FaceLandmarks?
     var bodyPose: BodyPose?
@@ -312,9 +320,11 @@ final class RenderBridge {
         renderGraph.bodyPose = bodyPose
         do {
             // Compare mode shows the unretouched source: render the neutral
-            // state into the drawable instead of the live state.
+            // state AND neutral extras into the drawable instead of the
+            // live state (otherwise paint + color grade would still show).
             let state = isComparing ? RetouchState() : state
-            try renderGraph.render(state: state, output: drawable.texture)
+            let extras = isComparing ? ExtraAdjustments() : extras
+            try renderGraph.render(state: state, extras: extras, output: drawable.texture)
             onRenderMs?(renderGraph.lastStageTimings["totalMs"] ?? 0)
             drawable.present()
         } catch {
