@@ -21,9 +21,9 @@ targets:
           - "**/*.swift"
           - "**/*.metal"
     resources:
-      - path: App/Resources/en.lproj
-      - path: App/Resources/ar.lproj
-      - path: App/Resources/Assets.xcassets
+      - App/Resources/en.lproj
+      - App/Resources/ar.lproj
+      - App/Resources/Assets.xcassets
     dependencies:
       - package: EditorCore
     settings:
