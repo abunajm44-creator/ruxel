@@ -21,7 +21,8 @@ struct CanvasView: UIViewRepresentable {
         metalView.isPaused = true
         metalView.enableSetNeedsDisplay = true
         metalView.preferredFramesPerSecond = 120
-        metalView.maximumDrawableCount = 3
+        // NOTE: MTKView's default maximumDrawableCount is already 3;
+        // the property is not settable on iOS, so it is left at default.
         metalView.delegate = context.coordinator
         metalView.colorPixelFormat = .bgra8Unorm
         context.coordinator.attachGestures(to: metalView)
