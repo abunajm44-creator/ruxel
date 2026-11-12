@@ -1,0 +1,227 @@
+/* Ruxel — Arabic strings. Every UI label has an English twin in en.lproj. */
+
+"common.ok" = "حسناً";
+"common.cancel" = "إلغاء";
+"common.back" = "رجوع";
+"common.done" = "تم";
+
+"home.title" = "روكسل";
+"home.import" = "استيراد صورة";
+"home.empty.title" = "لا توجد مشاريع بعد";
+"home.empty.body" = "استورد صورة لتبدأ التعديل. ستظهر مشاريعك هنا.";
+"home.openProject" = "فتح المشروع";
+
+"onboarding.1.title" = "عدّل الوجه بشكل طبيعي";
+"onboarding.1.body" = "العيون والأنف والشفاه والحواجب والوجه — منزلقات لطيفة تحافظ على ملامحك.";
+"onboarding.2.title" = "تعديل بلمسة واحدة";
+"onboarding.2.body" = "التلقائي ينعّم البشرة ويزيل اللمعان ويُشرق العينين بلمسة واحدة.";
+"onboarding.3.title" = "تصدير بجودة كاملة";
+"onboarding.3.body" = "احفظ في الصور أو شارك بصيغة HEIC أو JPEG أو PNG — صورتك الأصلية لا تتغير أبداً.";
+"onboarding.start" = "ابدأ";
+
+"error.title" = "حدث خطأ ما";
+
+"tool.brush" = "فرش";
+"tool.teeth" = "الأسنان";
+"tool.auto" = "تلقائي";
+"tool.makeup" = "مكياج";
+"tool.face" = "الوجه";
+"tool.slim" = "تنحيف";
+"tool.bodySculpt" = "نحت الجسم";
+"tool.smoothing" = "تنعيم";
+"tool.skin" = "البشرة";
+"tool.wrinkles" = "إزالة التجاعيد";
+"tool.lift" = "رفع وشد";
+"tool.colorBrush" = "فرشاة التلوين";
+"tool.acne" = "إزالة الحبوب";
+"tool.shine" = "إزالة اللمعان";
+"tool.head" = "الرأس";
+"tool.eyes" = "العيون";
+"tool.darkCircles" = "إزالة الهالات";
+"tool.hair" = "تسريحات الشعر";
+"tool.eraser" = "إزالة";
+
+"face.tab.threeD" = "ثلاثية الأبعاد";
+"face.tab.face" = "الوجه";
+"face.tab.brows" = "الحواجب";
+"face.tab.eyes" = "العين";
+"face.tab.nose" = "الأنف";
+"face.tab.lips" = "الشفاه";
+"face.threeD.body" = "التعديل ثلاثي الأبعاد يستخدم زاوية الوجه المكتشفة. حرّك بلطف — التغييرات الصغيرة تبدو أفضل.";
+
+"face.slider.eyeSize" = "الحجم";
+"face.slider.eyeHeight" = "الارتفاع";
+"face.slider.eyeWidth" = "العرض";
+"face.slider.eyeLength" = "الطول";
+"face.slider.eyeDistance" = "المسافة";
+"face.slider.eyePuffy" = "انتفاخ العين";
+"face.slider.eyeAngle" = "الزاوية";
+"face.slider.eyePosition" = "الموضع";
+"face.slider.noseSize" = "الحجم";
+"face.slider.noseLift" = "الرفع";
+"face.slider.noseAla" = "المنخران";
+"face.slider.noseRoot" = "الجذر";
+"face.slider.noseBridge" = "الجسر";
+"face.slider.noseTip" = "الطرف";
+"face.slider.lipSize" = "الحجم";
+"face.slider.lipWidth" = "العرض";
+"face.slider.lipThickness" = "السُمك";
+"face.slider.lipSmile" = "الابتسامة";
+"face.slider.lipPosition" = "الموضع";
+"face.slider.lipShape" = "شكل M";
+"face.slider.browHeight" = "الارتفاع";
+"face.slider.browDistance" = "المسافة";
+"face.slider.browThickness" = "السُمك";
+"face.slider.browAngle" = "الزاوية";
+"face.slider.browLength" = "الطول";
+"face.slider.browShape" = "الشكل";
+"face.slider.faceWidth" = "العرض";
+"face.slider.jaw" = "الفك";
+"face.slider.chin" = "الذقن";
+"face.slider.chinWidth" = "عرض الذقن";
+"face.slider.cheekbones" = "عظام الخد";
+"face.slider.temples" = "الصدغان";
+"face.slider.forehead" = "الجبهة";
+"face.slider.faceLength" = "طول الوجه";
+"face.slider.faceVShape" = "شكل V";
+"face.slider.yawAttenuation" = "تثبيت الانحراف";
+"face.slider.pitchAttenuation" = "تثبيت الميل";
+"face.slider.rollAttenuation" = "تثبيت الدوران";
+
+"skin.auto" = "تعديل تلقائي";
+"skin.smoothing" = "التنعيم";
+"skin.texture" = "الملمس";
+"skin.grain" = "الحبيبات";
+"skin.wrinkles" = "التجاعيد";
+"skin.acne" = "الحبوب";
+"skin.shine" = "اللمعان";
+"skin.darkCircles" = "الهالات";
+"skin.teeth" = "تبييض الأسنان";
+"skin.eyeEnhance" = "تحسين العين";
+
+"body.manual" = "يدوي";
+"body.auto" = "تلقائي";
+"body.brushMode" = "وضع الفرشاة";
+"body.classic" = "كلاسيكي";
+"body.fast" = "سريع";
+"body.restore" = "استعادة";
+"body.size" = "الحجم";
+"body.manualHint" = "ارسم على المنطقة لتعديل شكلها. الاستعادة تمسح ضرباتك.";
+"body.slim" = "التنحيف";
+"body.waist" = "الخصر";
+"body.hips" = "الوركان";
+"body.legsLength" = "طول الساقين";
+"body.shoulders" = "الكتفان";
+"body.neck" = "الرقبة";
+
+"editor.compare" = "مقارنة";
+"editor.backgroundLock" = "قفل الخلفية";
+"editor.distortionCorrection" = "تصحيح التشوه";
+"editor.distortionHelp" = "يصحح التمدد الخفيف الذي يظهر قرب حافة الإطار. يعمل عند العثور على وجه أو جسم.";
+"editor.version" = "روكسل 0.1.0";
+"editor.noFace" = "لم نعثر على وجه في هذه الصورة. أدوات الوجه متوقفة، والأدوات اليدوية ما زالت تعمل.";
+"editor.comingSoon" = "هذه الأداة قادمة قريباً.";
+"editor.cancel" = "إلغاء";
+"editor.apply" = "تطبيق";
+"editor.scope" = "عام";
+"editor.scope.general" = "عام";
+"editor.scope.left" = "يسار";
+"editor.scope.right" = "يمين";
+
+"debug.title" = "التشخيص";
+"debug.fps" = "الإطارات في الثانية";
+"debug.renderMs" = "زمن العرض (م.ث)";
+"debug.memory" = "الذاكرة";
+"debug.landmarks" = "إظهار المعالم";
+"debug.masks" = "إظهار الأقنعة";
+"debug.field" = "إظهار حقل التشويه";
+"debug.copyLog" = "نسخ السجل";
+"debug.copied" = "تم نسخ السجل";
+"debug.close" = "إغلاق";
+
+
+"makeup.lips" = "الشفاه";
+"makeup.blush" = "أحمر الخدود";
+"makeup.shadow" = "ظل العيون";
+"makeup.liner" = "الآيلاينر";
+"makeup.brows" = "الحواجب";
+"makeup.color" = "اللون";
+"makeup.intensity" = "الشدة";
+"makeup.finish" = "اللمسة النهائية";
+"makeup.finish.matte" = "مطفي";
+"makeup.finish.satin" = "ساتان";
+"makeup.finish.glossy" = "لامع";
+"makeup.pending" = "المكياج محفوظ وسيظهر على الصورة عندما يصل محرك المكياج.";
+
+"colorBrush.color" = "اللون";
+"colorBrush.intensity" = "الشدة";
+"colorBrush.size" = "حجم الفرشاة";
+"colorBrush.hint" = "ارسم على الصورة لتلوين المنطقة. التكبير متوقف أثناء الرسم.";
+"colorBrush.clear" = "مسح الضربات";
+
+"head.size" = "حجم الرأس";
+"head.shape" = "شكل الرأس";
+"head.note" = "أقطار تشويه الرأس بوحدة المسافة بين الحدقتين، وتُضبط عند وصول خريطة الرأس إلى EditorCore.";
+
+"lift.lift" = "الرفع";
+"lift.tighten" = "الشد";
+"lift.note" = "رفع وشد لطيف للوجه والرقبة. التغييرات الصغيرة تبدو أفضل.";
+
+"editor.distortionStrength" = "قوة تصحيح التشوه";
+"editor.facePicker" = "الوجه";
+
+"face.threeD.depth" = "عمق ثلاثي الأبعاد";
+"face.threeD.farSide" = "تخفيف الجانب البعيد";
+"face.threeD.attenuation" = "يُخفَّف التشويه على الجانب البعيد من الوجه حسب زاوية الوجه (الانحراف والميل والدوران) حتى يبدو طبيعياً في الصور الثلاثية الأبعاد.";
+
+"eraser.size" = "حجم الفرشاة";
+"eraser.hint" = "ارسم فوق الشيء الذي تريد إزالته. التكبير متوقف أثناء الرسم.";
+"eraser.clearMask" = "مسح القناع";
+"eraser.apply" = "إزالة";
+"eraser.pending" = "محرك الإزالة (PatchMatch) لم يُبنَ بعد — القناع محفوظ، وزر الإزالة متوقف حتى يصل المحرك.";
+
+"hair.color" = "لون الشعر";
+"hair.volume" = "الحجم";
+"hair.flyaway" = "تنعيم الشعر المتطاير";
+"hair.unavailable" = "لا يوجد قناع شعر في هذه الصورة بعد — أداة الشعر تجريبية وتتوقف حتى يتوفر قناع الشعر.";
+
+"sparkle.style" = "النمط";
+"sparkle.style.glow" = "توهج";
+"sparkle.style.glitter" = "لمعان";
+"sparkle.style.star" = "نجوم";
+"sparkle.size" = "حجم الفرشاة";
+"sparkle.intensity" = "الشدة";
+"sparkle.hint" = "ارسم على الصورة لإضافة توهج. التكبير متوقف أثناء الرسم.";
+"sparkle.clear" = "مسح الضربات";
+
+"crop.rotation" = "الدوران";
+"crop.aspect" = "نسبة العرض";
+"crop.aspect.free" = "حر";
+"crop.aspect.square" = "مربع 1:1";
+"crop.aspect.portrait" = "عمودي 4:5";
+"crop.aspect.wide" = "عريض 16:9";
+"crop.aspect.classic" = "كلاسيكي 3:2";
+"crop.note" = "الدوران والنسبة محفوظان؛ اقتصاص الإطار على اللوحة يصل مع محرك التصدير.";
+
+"adjust.exposure" = "التعريض";
+"adjust.contrast" = "التباين";
+"adjust.saturation" = "التشبع";
+"adjust.warmth" = "الدفء";
+"adjust.note" = "التعديلات الأساسية محفوظة وستُطبَّق عندما يصل محرك الألوان.";
+
+"filter.preset" = "الفلتر";
+"filter.none" = "بدون";
+"filter.vivid" = "زاهي";
+"filter.warm" = "دافئ";
+"filter.cool" = "بارد";
+"filter.mono" = "أحادي";
+"filter.fade" = "باهت";
+"filter.intensity" = "الشدة";
+"filter.note" = "الفلاتر تعديلات لونية بسيطة (تشبع وتباين ودفء) تُطبَّق عندما يصل محرك الألوان.";
+
+"tool.cropRotate" = "قص وتدوير";
+"tool.basicAdjust" = "ضبط أساسي";
+"tool.filters" = "فلاتر";
+
+"editor.export" = "تصدير";
+"editor.exportDone" = "صورتك جاهزة للمشاركة.";
