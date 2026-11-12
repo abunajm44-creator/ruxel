@@ -30,7 +30,9 @@ struct ColorParams {
             preset: extras.filterPreset,
             intensity: extras.filterIntensity / 100
         )
-        let rect = cropRect(
+        // Qualified: the struct's own `cropRect` property shadows the
+        // global EditorCore function of the same name.
+        let rect = EditorCore.cropRect(
             aspect: extras.cropAspect,
             sourceWidth: Float(sourceWidth),
             sourceHeight: Float(sourceHeight)
