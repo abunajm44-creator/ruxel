@@ -1,0 +1,17 @@
+# Swift / Xcode build products
+.build/
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS / Xcode user state
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+.DS_Store
+
+# Swift Package Manager resolved file is committed intentionally (keep Package.resolved)
+# Local developer settings
+*.moved-aside
