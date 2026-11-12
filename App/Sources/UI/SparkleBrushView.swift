@@ -39,7 +39,7 @@ struct SparkleBrushView: View {
                     get: { viewModel.extras.sparkleIntensity },
                     set: { newValue in
                         viewModel.updateExtras { $0.sparkleIntensity = newValue }
-                        viewModel.renderGraph?.markSourceSpaceDirty()
+                        viewModel.renderGraph?.markOverlayDirty()
                     }
                 ),
                 range: 0...100,
@@ -78,7 +78,7 @@ struct SparkleBrushView: View {
     private func clearStrokes() {
         viewModel.beginChange()
         viewModel.updateExtras { $0.sparkleStrokes.removeAll() }
-        viewModel.renderGraph?.markSourceSpaceDirty()
+        viewModel.renderGraph?.markOverlayDirty()
         viewModel.endChange()
     }
 }

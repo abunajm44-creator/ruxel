@@ -31,7 +31,7 @@ struct BasicAdjustView: View {
                 get: { viewModel.extras[keyPath: keyPath] },
                 set: { newValue in
                     viewModel.updateExtras { extras in extras[keyPath: keyPath] = newValue }
-                    viewModel.renderGraph?.markSourceSpaceDirty()
+                    viewModel.renderGraph?.markColorDirty()
                 }
             ),
             titleKey: key,

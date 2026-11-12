@@ -65,8 +65,15 @@ public func scaleDisplacement(at p: Vec2, center: Vec2, radius: Float, amount: F
     return Vec2(-dx * w, -dy * w)
 }
 
-/// Translate warp: shifts points near `center` along `direction` by
+/// Translate warp: moves content near `center` along `direction` by
 /// `amount` (in normalized units), fading to zero at `radius`.
+/// BACKWARD-MAP CONVENTION (read before changing this): the renderers
+/// sample the source at p + D(p), so a feature moves OPPOSITE to the
+/// field vector. The field returned here is therefore the NEGATION of
+/// the intended motion: D = -direction * falloff * amount. The WarpOp's
+/// `direction` is the intended content motion (e.g. nose lift = up);
+/// this function converts it into the backward field the samplers need.
+/// The Metal `warpOpDisplacement` kernel must mirror this sign exactly.
 public func translateDisplacement(
     at p: Vec2,
     center: Vec2,
@@ -76,15 +83,22 @@ public func translateDisplacement(
 ) -> Vec2 {
     let distance = p.distance(to: center)
     let w = falloff(distance: distance, radius: radius) * amount
-    return direction * w
+    return -direction * w
 }
 
-/// Pinch warp: pulls points toward `center`. Amount > 0 pinches inward,
+/// Pinch warp: pulls content toward `center`. Amount > 0 pinches inward,
 /// amount < 0 pushes outward. The pull is strongest near the center and
 /// fades to zero at `radius`, and the displacement itself is zero at the
 /// center (it is proportional to the offset), so the map stays smooth
 /// and fold-free there. Unlike scale, whose profile grows with distance,
 /// pinch peaks at the center.
+/// BACKWARD-MAP CONVENTION: the renderers sample at p + D(p), so content
+/// moves opposite to the field. To pull content toward the center the
+/// field must point AWAY from it: D = +offset * falloff * (1-t) * amount.
+/// (Scale has the opposite sign because enlarging also moves content
+/// away from the center — its field points toward it. The two ops are
+/// not the same: scale grows with distance, pinch peaks at the center.)
+/// The Metal `warpOpDisplacement` kernel must mirror this sign exactly.
 public func pinchDisplacement(at p: Vec2, center: Vec2, radius: Float, amount: Float) -> Vec2 {
     let dx = p.x - center.x
     let dy = p.y - center.y
@@ -92,7 +106,7 @@ public func pinchDisplacement(at p: Vec2, center: Vec2, radius: Float, amount: F
     guard radius > 0, distance > 0 else { return .zero }
     let t = min(distance / radius, 1)
     let w = falloff(distance: distance, radius: radius) * (1 - t) * amount
-    return Vec2(-dx * w, -dy * w)
+    return Vec2(dx * w, dy * w)
 }
 
 /// Displacement of a single op at a point, with its axes mask applied.

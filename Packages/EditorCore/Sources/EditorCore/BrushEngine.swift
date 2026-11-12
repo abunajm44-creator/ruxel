@@ -140,8 +140,10 @@ public func brushDabs(from stroke: BrushStroke) -> [BrushDab] {
 }
 
 /// Stamps one dab into a row-major field (`width` x `height`, normalized
-/// coordinates). Push modes add displacement along the dab direction;
-/// restore scales the existing displacement toward zero.
+/// coordinates). Push modes stamp displacement OPPOSITE to the dab
+/// direction (backward-map convention: the samplers read at p + D(p),
+/// so content moves opposite to the field — a push along the drag needs
+/// a negated field); restore scales the existing displacement toward zero.
 public func stampDab(field: inout [Vec2], width: Int, height: Int, dab: BrushDab) {
     switch dab.mode {
     case .classic, .fast:
@@ -151,7 +153,9 @@ public func stampDab(field: inout [Vec2], width: Int, height: Int, dab: BrushDab
     }
 }
 
-/// Push dab: displacement += direction * falloff * strength * radius * gain.
+/// Push dab: the field is the NEGATION of the drag direction (see the
+/// backward-map note on stampDab): field -= direction * falloff *
+/// strength * radius * gain, so rendered content moves ALONG the drag.
 public func stampPushDab(field: inout [Vec2], width: Int, height: Int, dab: BrushDab) {
     guard width > 0, height > 0, field.count == width * height else { return }
     guard dab.radius > 0 else { return }
@@ -171,7 +175,7 @@ public func stampPushDab(field: inout [Vec2], width: Int, height: Int, dab: Brus
             let f = falloff(distance: distance, radius: dab.radius)
             guard f > 0 else { continue }
             let index = y * width + x
-            field[index] = field[index] + dab.direction * (f * dab.strength * dab.radius * brushPushGain)
+            field[index] = field[index] - dab.direction * (f * dab.strength * dab.radius * brushPushGain)
         }
     }
 }
@@ -238,7 +242,8 @@ public func stampDabTile(
             let index = y * tileWidth + x
             switch dab.mode {
             case .classic, .fast:
-                field[index] = field[index] + dab.direction * (f * dab.strength * dab.radius * brushPushGain)
+                // Negated like stampPushDab (backward-map convention).
+                field[index] = field[index] - dab.direction * (f * dab.strength * dab.radius * brushPushGain)
             case .restore:
                 field[index] = field[index] * (1 - f * dab.strength)
             }

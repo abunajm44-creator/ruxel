@@ -15,19 +15,26 @@ final class RenderGraph {
     private let pool: TexturePool
     private var sourceTexture: MTLTexture?
     private var stage2Texture: MTLTexture?
+    private var stageOverlayTexture: MTLTexture?
     private var stage3Texture: MTLTexture?
+    private var stageColorTexture: MTLTexture?
     private var fieldTexture: MTLTexture?
 
     /// Runtime textures supplied by the view model (analysis masks).
     var skinMaskTexture: MTLTexture?
     var personMaskTexture: MTLTexture?
+    /// Paint overlay texture (color + sparkle strokes, photo space),
+    /// built by the view model from the extras. Nil when no strokes.
+    var overlayTexture: MTLTexture?
 
     /// Analysis results that drive the warp ops (set by the canvas bridge).
     var landmarks: FaceLandmarks?
     var bodyPose: BodyPose?
 
     private var stage2Dirty = true
+    private var stageOverlayDirty = true
     private var stage3Dirty = true
+    private var stageColorDirty = true
     private(set) var lastStageTimings: [String: Double] = [:]
 
     /// Interactive resolution while a finger is down (~1.5 MP); full proxy when idle.
@@ -67,36 +74,65 @@ final class RenderGraph {
 
     func setSource(_ texture: MTLTexture?) {
         pool.release(stage2Texture)
+        pool.release(stageOverlayTexture)
         pool.release(stage3Texture)
+        pool.release(stageColorTexture)
         pool.release(fieldTexture)
         stage2Texture = nil
+        stageOverlayTexture = nil
         stage3Texture = nil
+        stageColorTexture = nil
         fieldTexture = nil
         sourceTexture = texture
         pool.purge()
         stage2Dirty = true
+        stageOverlayDirty = true
         stage3Dirty = true
+        stageColorDirty = true
     }
 
-    /// Skin / source-space change: re-runs stages 2 and 3.
+    /// Skin / source-space change: re-runs stages 2 and later.
     func markSourceSpaceDirty() {
         stage2Dirty = true
+        stageOverlayDirty = true
         stage3Dirty = true
+        stageColorDirty = true
     }
 
-    /// Geometry change (slider drag): re-runs only stage 3.
+    /// Paint-stroke change: re-runs the overlay blend and later stages.
+    func markOverlayDirty() {
+        stageOverlayDirty = true
+        stage3Dirty = true
+        stageColorDirty = true
+    }
+
+    /// Geometry change (slider drag): re-runs only stage 3 and the color stage.
     func markGeometryDirty() {
         stage3Dirty = true
+        stageColorDirty = true
+    }
+
+    /// Color change (adjust / filter / crop): re-runs only the color stage.
+    func markColorDirty() {
+        stageColorDirty = true
     }
 
     func markAllDirty() {
         stage2Dirty = true
+        stageOverlayDirty = true
         stage3Dirty = true
+        stageColorDirty = true
     }
 
-    /// Renders the current state into `output`. Neutral stages are skipped:
-    /// if no skin work is active, stage 2 passes the source through.
-    func render(state: RetouchState, output: MTLTexture) throws {
+    /// Renders the current state + extras into `output`. Neutral stages
+    /// are skipped: if no skin work is active, stage 2 passes the source
+    /// through; if no paint strokes exist, stage 2.5 passes through;
+    /// if the geometry is neutral, stage 3 passes through; if the color
+    /// extras are neutral, stage 3.5 passes through.
+    /// Pipeline order (spec 7D): source -> skin (2) -> paint overlay
+    /// (2.5, source space so strokes move with the warp) -> geometry
+    /// warp (3) -> color grade + crop (3.5) -> output (4).
+    func render(state: RetouchState, extras: ExtraAdjustments, output: MTLTexture) throws {
         guard let source = sourceTexture else { throw RenderError.textureCreationFailed }
         guard let commandBuffer = context.queue.makeCommandBuffer() else {
             throw RenderError.noCommandBuffer
@@ -142,11 +178,37 @@ final class RenderGraph {
             }
             stage2Dirty = false
         }
-        // Stage 3 — geometry last (face/body warp via displacement field).
+        // Stage 2.5 — paint overlay (color brush + sparkle), blended in
+        // source space so strokes warp with the photo in stage 3.
+        if stageOverlayDirty {
+            pool.release(stageOverlayTexture)
+            let stage2 = stage2Texture ?? source
+            if let overlay = overlayTexture,
+               extras.colorBrushStrokes.isEmpty == false || extras.sparkleStrokes.isEmpty == false {
+                guard let blended = pool.acquire(
+                    width: source.width, height: source.height,
+                    pixelFormat: source.pixelFormat,
+                    usage: [.shaderRead, .shaderWrite], label: "overlayBlended") else {
+                    throw RenderError.textureCreationFailed
+                }
+                // blendOverlay takes no params buffer; pass a dummy so the
+                // shared encode() helper keeps one signature (the kernel
+                // ignores buffer 0, like skinLowPass above).
+                try context.encode("blendOverlay", commandBuffer,
+                                   textures: [stage2, overlay, blended],
+                                   params: UInt32(0), grid: grid)
+                stageOverlayTexture = blended
+            } else {
+                stageOverlayTexture = stage2
+                pool.retain(stageOverlayTexture)
+            }
+            stageOverlayDirty = false
+        }
+        // Stage 3 — geometry last (face/body/head/lift warp via displacement field).
         if stage3Dirty {
             pool.release(stage3Texture)
-            if state.isGeometryNeutral {
-                stage3Texture = stage2Texture ?? source
+            if state.isGeometryNeutral && headLiftIsNeutral(extras) {
+                stage3Texture = stageOverlayTexture ?? stage2Texture ?? source
                 pool.retain(stage3Texture)
             } else {
                 // Field is nil when sliders are set but no landmarks/pose
@@ -154,7 +216,7 @@ final class RenderGraph {
                 // face/body found): render unwarped rather than sampling
                 // a nil field texture.
                 if let field = try rebuildField(
-                    state: state, commandBuffer: commandBuffer,
+                    state: state, extras: extras, commandBuffer: commandBuffer,
                     width: source.width, height: source.height) {
                     guard let warped = pool.acquire(
                         width: source.width, height: source.height,
@@ -164,19 +226,42 @@ final class RenderGraph {
                     }
                     stage3Texture = warped
                     let warp = WarpParams(backgroundLock: state.backgroundLock ? 1 : 0)
-                    let stage2 = stage2Texture ?? source
+                    let stageBefore = stageOverlayTexture ?? stage2Texture ?? source
                     try context.encode("applyDisplacement", commandBuffer,
-                                       textures: [stage2, field, personMaskTexture, warped],
+                                       textures: [stageBefore, field, personMaskTexture, warped],
                                        params: warp, grid: grid)
                 } else {
-                    stage3Texture = stage2Texture ?? source
+                    stage3Texture = stageOverlayTexture ?? stage2Texture ?? source
                     pool.retain(stage3Texture)
                 }
             }
             stage3Dirty = false
         }
+        // Stage 3.5 — color grade + crop/rotate (after the warp).
+        if stageColorDirty {
+            pool.release(stageColorTexture)
+            if extras.isColorNeutral {
+                stageColorTexture = stage3Texture ?? stageOverlayTexture ?? stage2Texture ?? source
+                pool.retain(stageColorTexture)
+            } else {
+                guard ColorParams.stridesMatch() else { throw RenderError.invalidParamsStride }
+                guard let graded = pool.acquire(
+                    width: source.width, height: source.height,
+                    pixelFormat: source.pixelFormat,
+                    usage: [.shaderRead, .shaderWrite], label: "colorGraded") else {
+                    throw RenderError.textureCreationFailed
+                }
+                let params = ColorParams(extras: extras, sourceWidth: source.width, sourceHeight: source.height)
+                let stageBefore = stage3Texture ?? stageOverlayTexture ?? stage2Texture ?? source
+                try context.encode("colorGrade", commandBuffer,
+                                   textures: [stageBefore, graded],
+                                   params: params, grid: grid)
+                stageColorTexture = graded
+            }
+            stageColorDirty = false
+        }
         // Stage 4 — output: blit the latest stage into the drawable/export texture.
-        if let finalTexture = stage3Texture ?? stage2Texture ?? sourceTexture,
+        if let finalTexture = stageColorTexture ?? stage3Texture ?? stageOverlayTexture ?? stage2Texture ?? sourceTexture,
            finalTexture !== output {
             guard let blit = commandBuffer.makeBlitCommandEncoder() else {
                 throw RenderError.noEncoder
@@ -188,12 +273,19 @@ final class RenderGraph {
         lastStageTimings["totalMs"] = (CFAbsoluteTimeGetCurrent() - start) * 1000.0
     }
 
+    /// Head/lift sliders are geometry (they add warp ops), so the stage-3
+    /// neutral check must include them alongside the EditorCore state.
+    private func headLiftIsNeutral(_ extras: ExtraAdjustments) -> Bool {
+        extras.headSize == 0 && extras.headShape == 0 && extras.lift == 0 && extras.tighten == 0
+    }
+
     /// Builds the displacement field texture (half proxy resolution) from
     /// the state's warp ops + brush dabs. Returns nil when there is
     /// nothing to warp (no ops, no dabs). The field texture is pooled and
     /// released on the next rebuild.
     private func rebuildField(
         state: RetouchState,
+        extras: ExtraAdjustments,
         commandBuffer: MTLCommandBuffer,
         width: Int,
         height: Int
@@ -202,6 +294,7 @@ final class RenderGraph {
         var ops: [WarpOp] = []
         if let landmarks, let face = state.faces.first {
             ops.append(contentsOf: faceWarpOps(face: face, landmarks: landmarks))
+            ops.append(contentsOf: headLiftWarpOps(extras: extras, landmarks: landmarks))
         }
         if let bodyPose {
             ops.append(contentsOf: bodyWarpOps(body: state.body, pose: bodyPose))

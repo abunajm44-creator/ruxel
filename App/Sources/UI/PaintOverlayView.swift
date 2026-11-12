@@ -28,7 +28,7 @@ struct PaintOverlayView: UIViewRepresentable {
                         extras.sparkleStrokes.append(stroke)
                     }
                 }
-                viewModel.renderGraph?.markSourceSpaceDirty()
+                viewModel.renderGraph?.markOverlayDirty()
                 viewModel.endChange()
             }
         }

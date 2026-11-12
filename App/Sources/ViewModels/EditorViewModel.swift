@@ -8,6 +8,8 @@ import Foundation
 import SwiftUI
 import UIKit
 import CoreVideo
+import ImageIO
+import Metal
 import EditorCore
 @MainActor
 final class EditorViewModel: ObservableObject {
@@ -34,6 +36,26 @@ final class EditorViewModel: ObservableObject {
     var personMaskPixelBuffer: CVPixelBuffer?
     /// Person mask as floats (0...1, row-major) at proxy size, for export.
     var personMaskFloat: (values: [Float], width: Int, height: Int)?
+
+    /// The photo's pixel size (from the original file's EXIF, no decode).
+    var imageSize: CGSize = .zero
+    /// The canvas size in points, reported by CanvasView. Drives the
+    /// overlay bitmap (photo rect + brush circularity).
+    var canvasSize: CGSize = .zero
+    /// Rasterized paint overlay (photo space) + its Metal texture, built
+    /// from the color/sparkle strokes whenever they change. Nil when
+    /// there is nothing to paint. Export samples the bitmap on CPU.
+    var overlayBitmap: PaintOverlayBitmap?
+    var overlayTexture: MTLTexture?
+    /// Live skin mask texture (person mask AND face oval), built after
+    /// analysis so the interactive smoothing stage has a mask to blend
+    /// with. Nil until analysis produces a mask + landmarks.
+    var skinMaskTexture: MTLTexture?
+    /// Last overlay inputs, to rebuild only when strokes, intensities,
+    /// canvas size or image size actually changed.
+    private var lastOverlayKey: (colorStrokes: [PaintStroke], sparkleStrokes: [PaintStroke],
+                                 colorIntensity: Float, sparkleIntensity: Float,
+                                 canvasSize: CGSize, imageSize: CGSize)?
 
     /// Distortion is available when a face OR a body was found; the
     /// distortion button greys out otherwise (see EditorView).
@@ -75,13 +97,16 @@ final class EditorViewModel: ObservableObject {
         exportProgress = 0
         let service = ExportService()
         let state = state
+        let extras = extras
+        let overlay = overlayBitmap
         let landmarks = landmarks
         let bodyPose = bodyPose
         let personMask = personMaskFloat
         let originalURL = project.originalURL
         exportTask = Task {
             let url = try await service.exportFullResolution(
-                state: state, landmarks: landmarks, bodyPose: bodyPose,
+                state: state, extras: extras, overlay: overlay,
+                landmarks: landmarks, bodyPose: bodyPose,
                 personMask: personMask, originalURL: originalURL,
                 format: format, quality: quality, stripGPS: stripGPS
             ) { [weak self] progress in
@@ -149,6 +174,12 @@ final class EditorViewModel: ObservableObject {
         store.migrateLegacyExtras(into: &loadedState, extras: loadedExtras, projectID: project.id)
         self.state = loadedState
         self.extras = loadedExtras
+        if let source = CGImageSourceCreateWithURL(project.originalURL as CFURL, nil),
+           let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let width = properties[kCGImagePropertyPixelWidth] as? Int,
+           let height = properties[kCGImagePropertyPixelHeight] as? Int {
+            self.imageSize = CGSize(width: width, height: height)
+        }
         if let context = MetalContext() {
             self.metalContext = context
             self.renderGraph = RenderGraph(context: context)
@@ -197,10 +228,72 @@ final class EditorViewModel: ObservableObject {
 
     func updateExtras(_ mutate: (inout ExtraAdjustments) -> Void) {
         mutate(&extras)
+        // Extras span geometry (head/lift), paint (overlay) and color
+        // (adjust/filter/crop) — mark all three downstream stages dirty.
         renderGraph?.markGeometryDirty()
+        renderGraph?.markOverlayDirty()
+        renderGraph?.markColorDirty()
+        rebuildOverlayIfNeeded()
     }
 
-    /// The scope chip (General / Left / Right) for the primary face.
+    /// Rebuilds the paint overlay bitmap + texture when the strokes,
+    /// intensities, canvas size or image size changed. A no-op otherwise
+    /// (slider drags that do not touch paint do not re-rasterize).
+    func rebuildOverlayIfNeeded() {
+        let key = (colorStrokes: extras.colorBrushStrokes, sparkleStrokes: extras.sparkleStrokes,
+                   colorIntensity: extras.colorBrushIntensity, sparkleIntensity: extras.sparkleIntensity,
+                   canvasSize: canvasSize, imageSize: imageSize)
+        if let last = lastOverlayKey, last == key { return }
+        lastOverlayKey = key
+        guard let bitmap = rasterizeOverlayBitmap(extras: extras, imageSize: imageSize, canvasSize: canvasSize) else {
+            overlayBitmap = nil
+            overlayTexture = nil
+            renderGraph?.overlayTexture = nil
+            return
+        }
+        overlayBitmap = bitmap
+        if let device = metalContext?.device {
+            overlayTexture = makeOverlayTexture(bitmap: bitmap, device: device)
+        }
+        renderGraph?.overlayTexture = overlayTexture
+    }
+
+    /// Builds the live skin-mask texture (person mask AND face oval, at
+    /// the person mask's proxy size) after analysis. Without it the
+    /// interactive smoothing stage has no mask and is a no-op. The
+    /// likelihood term is skipped live (it needs source pixels); export
+    /// keeps the full skinMask() version.
+    func rebuildSkinMaskTexture() {
+        guard let device = metalContext?.device,
+              let mask = personMaskFloat,
+              let contour = landmarks?.contour, contour.count >= 3 else {
+            skinMaskTexture = nil
+            renderGraph?.skinMaskTexture = nil
+            return
+        }
+        let width = mask.width
+        let height = mask.height
+        let oval = faceOvalMask(
+            tileWidth: width, tileHeight: height,
+            tileOriginX: 0, tileOriginY: 0,
+            imageWidth: width, imageHeight: height, contour: contour)
+        guard oval.count == mask.values.count else { return }
+        var bytes = [UInt8](repeating: 0, count: width * height)
+        for index in 0..<bytes.count {
+            bytes[index] = UInt8(min(max(mask.values[index] * oval[index], 0), 1) * 255)
+        }
+        let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .r8Unorm, width: width, height: height, mipmapped: false)
+        descriptor.usage = [.shaderRead]
+        guard let texture = device.makeTexture(descriptor: descriptor) else { return }
+        bytes.withUnsafeBytes { raw in
+            guard let baseAddress = raw.baseAddress else { return }
+            texture.replace(region: MTLRegionMake2D(0, 0, width, height),
+                            mipmapLevel: 0, withBytes: baseAddress, bytesPerRow: width)
+        }
+        skinMaskTexture = texture
+        renderGraph?.skinMaskTexture = texture
+    }
     var scope: FaceScope {
         get { state.primaryFace.scope }
         set {
@@ -313,6 +406,7 @@ final class EditorViewModel: ObservableObject {
         var ops: [WarpOp] = []
         if let faceLandmarks = landmarks, let face = state.faces.first {
             ops.append(contentsOf: faceWarpOps(face: face, landmarks: faceLandmarks))
+            ops.append(contentsOf: headLiftWarpOps(extras: extras, landmarks: faceLandmarks))
         }
         if let pose = bodyPose {
             ops.append(contentsOf: bodyWarpOps(body: state.body, pose: pose))
@@ -396,6 +490,7 @@ final class EditorViewModel: ObservableObject {
                     personMaskImage = AnalysisService.maskImage(from: pixelBuffer)
                     personMaskFloat = AnalysisService.floatMask(from: pixelBuffer)
                 }
+                rebuildSkinMaskTexture()
                 if result.hasFace == false {
                     errorMessage = AppError.noFaceFound.localizedDescription
                 }

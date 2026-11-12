@@ -26,7 +26,7 @@ struct ColorBrushView: View {
                     get: { viewModel.extras.colorBrushIntensity },
                     set: { newValue in
                         viewModel.updateExtras { $0.colorBrushIntensity = newValue }
-                        viewModel.renderGraph?.markSourceSpaceDirty()
+                        viewModel.renderGraph?.markOverlayDirty()
                     }
                 ),
                 range: 0...100,
@@ -96,7 +96,7 @@ struct ColorBrushView: View {
     private func clearStrokes() {
         viewModel.beginChange()
         viewModel.updateExtras { $0.colorBrushStrokes.removeAll() }
-        viewModel.renderGraph?.markSourceSpaceDirty()
+        viewModel.renderGraph?.markOverlayDirty()
         viewModel.endChange()
     }
 

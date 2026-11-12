@@ -60,20 +60,93 @@ final class WarpMathTests: XCTestCase {
         XCTAssertEqual(scaleDisplacement(at: center, center: center, radius: 0.4, amount: 0.5), Vec2.zero)
     }
 
-    func testTranslateMovesAlongDirection() {
-        let center = Vec2(0.5, 0.5)
-        let at = Vec2(0.5, 0.5)
-        let moved = translateDisplacement(at: at, center: center, radius: 0.4, amount: 0.1, direction: Vec2(0, 1))
-        XCTAssertEqual(moved.x, 0, accuracy: 0.0001)
-        XCTAssertEqual(moved.y, 0.1, accuracy: 0.0001)
+    /// Renders a 3x3 bright block through a normalized displacement
+    /// field and returns the intensity-weighted centroid of the warped
+    /// block. The samplers read at p + D(p), so rendered content moves
+    /// OPPOSITE to the field vector — these tests assert what the user
+    /// actually sees, not the field values.
+    private func renderedCentroid(size: Int, blockCenter: (x: Int, y: Int), field: [Vec2]) -> (x: Float, y: Float) {
+        var src = [Float](repeating: 0, count: size * size)
+        for dy in -1...1 {
+            for dx in -1...1 {
+                let x = blockCenter.x + dx, y = blockCenter.y + dy
+                guard x >= 0, x < size, y >= 0, y < size else { continue }
+                src[y * size + x] = 1
+            }
+        }
+        let pixelField = field.map { Vec2($0.x * Float(size), $0.y * Float(size)) }
+        let out = warpImageFloatCubic(src: src, width: size, height: size, displacement: pixelField)
+        var sx: Float = 0, sy: Float = 0, total: Float = 0
+        for y in 0..<size {
+            for x in 0..<size {
+                let v = out[y * size + x]
+                guard v > 0 else { continue }
+                sx += Float(x) * v
+                sy += Float(y) * v
+                total += v
+            }
+        }
+        guard total > 0 else { return (Float(blockCenter.x), Float(blockCenter.y)) }
+        return (sx / total, sy / total)
     }
 
-    func testPinchPullsTowardCenter() {
+    /// Per-pixel normalized displacement field for one op, sampled at
+    /// pixel centers (the export convention).
+    private func fieldForOp(_ op: WarpOp, size: Int) -> [Vec2] {
+        var field = [Vec2](repeating: .zero, count: size * size)
+        for y in 0..<size {
+            for x in 0..<size {
+                let p = Vec2((Float(x) + 0.5) / Float(size), (Float(y) + 0.5) / Float(size))
+                field[y * size + x] = displacement(of: op, at: p)
+            }
+        }
+        return field
+    }
+
+    func testTranslateMovesContentAlongDirection() {
+        // Translate right by 0.05 (normalized): the bright block at the
+        // center must render ~5px to the RIGHT, not left.
+        let op = WarpOp(type: .translate, center: Vec2(0.5, 0.5), radius: 0.4, amount: 0.05, direction: Vec2(1, 0))
+        let centroid = renderedCentroid(size: 101, blockCenter: (50, 50), field: fieldForOp(op, size: 101))
+        XCTAssertGreaterThan(centroid.x, 52)
+        XCTAssertEqual(centroid.y, 50, accuracy: 0.6)
+    }
+
+    func testTranslateUpMovesContentUp() {
+        // Nose lift: direction up (0,-1) must render the block UP
+        // (smaller y), the way the slider label promises.
+        let op = WarpOp(type: .translate, center: Vec2(0.5, 0.5), radius: 0.4, amount: 0.05, direction: Vec2(0, -1))
+        let centroid = renderedCentroid(size: 101, blockCenter: (50, 50), field: fieldForOp(op, size: 101))
+        XCTAssertLessThan(centroid.y, 48)
+        XCTAssertEqual(centroid.x, 50, accuracy: 0.6)
+    }
+
+    func testPinchPullsContentTowardCenter() {
+        // Pinch +0.3 at the center: a block right of center must render
+        // toward the center (smaller x).
+        let op = WarpOp(type: .pinch, center: Vec2(0.5, 0.5), radius: 0.4, amount: 0.3)
+        let centroid = renderedCentroid(size: 101, blockCenter: (65, 50), field: fieldForOp(op, size: 101))
+        XCTAssertLessThan(centroid.x, 64)
+        XCTAssertEqual(centroid.y, 50, accuracy: 0.6)
+    }
+
+    func testScaleEnlargeMovesContentAwayFromCenter() {
+        // Scale +0.8 at the center: a block right of center must render
+        // further right (away from the center).
+        let op = WarpOp(type: .scale, center: Vec2(0.5, 0.5), radius: 0.4, amount: 0.8)
+        let centroid = renderedCentroid(size: 101, blockCenter: (75, 50), field: fieldForOp(op, size: 101))
+        XCTAssertGreaterThan(centroid.x, 75.5)
+        XCTAssertEqual(centroid.y, 50, accuracy: 0.6)
+    }
+
+    func testTranslateFieldIsNegatedDirection() {
+        // The field itself is the backward map: for a translate op the
+        // field points OPPOSITE to the intended content motion.
         let center = Vec2(0.5, 0.5)
-        let right = Vec2(0.7, 0.5)
-        let pinched = pinchDisplacement(at: right, center: center, radius: 0.4, amount: 0.1)
-        XCTAssertLessThan(pinched.x, 0)
-        XCTAssertEqual(pinched.y, 0, accuracy: 0.0001)
+        let at = Vec2(0.5, 0.5)
+        let field = translateDisplacement(at: at, center: center, radius: 0.4, amount: 0.1, direction: Vec2(0, 1))
+        XCTAssertEqual(field.x, 0, accuracy: 0.0001)
+        XCTAssertEqual(field.y, -0.1, accuracy: 0.0001)
     }
 
     func testAxesMasking() {

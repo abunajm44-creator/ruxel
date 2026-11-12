@@ -46,14 +46,19 @@ final class ExportService {
     /// Full-resolution export: replays sliders and brush strokes
     /// analytically per tile (2048 + halo), so a 48MP photo never needs
     /// huge textures. Skin stage (mask + blur + blend + grain) runs
-    /// first, then the warp stage (bicubic, background lock). Two full
-    /// RGBA8 buffers (input + output, ~192MB each at 48MP) plus one
-    /// assembled Data live transiently — the input buffer is released
-    /// before assembly. Progress is 0...1 per finished tile; cancellation
-    /// is checked between tiles. Returns the temp file URL (caller saves
-    /// it to Photos or shares it, then calls cleanupTempFile).
+    /// first, then the warp stage (bicubic, background lock), then the
+    /// color stage (grade + paint overlay, same math as the live
+    /// colorGrade kernel). Crop/rotate is applied last as a post-process
+    /// on the assembled image. Two full RGBA8 buffers (input + output,
+    /// ~192MB each at 48MP) plus one assembled Data live transiently —
+    /// the input buffer is released before assembly. Progress is 0...1
+    /// per finished tile; cancellation is checked between tiles. Returns
+    /// the temp file URL (caller saves it to Photos or shares it, then
+    /// calls cleanupTempFile).
     func exportFullResolution(
         state: RetouchState,
+        extras: ExtraAdjustments,
+        overlay: PaintOverlayBitmap?,
         landmarks: FaceLandmarks?,
         bodyPose: BodyPose?,
         personMask: (values: [Float], width: Int, height: Int)?,
@@ -70,6 +75,7 @@ final class ExportService {
         var ops: [WarpOp] = []
         if let landmarks, let face = state.faces.first {
             ops.append(contentsOf: faceWarpOps(face: face, landmarks: landmarks))
+            ops.append(contentsOf: headLiftWarpOps(extras: extras, landmarks: landmarks))
         }
         if let bodyPose {
             ops.append(contentsOf: bodyWarpOps(body: state.body, pose: bodyPose))
@@ -85,13 +91,17 @@ final class ExportService {
         for (index, tile) in tiles.enumerated() {
             try Task.checkCancellation()
             processTile(
-                tile, state: state, ops: ops, dabs: dabs, landmarks: landmarks,
+                tile, state: state, extras: extras, overlay: overlay,
+                ops: ops, dabs: dabs, landmarks: landmarks,
                 personMask: personMask, input: input, output: &output,
                 imageWidth: imageWidth, imageHeight: imageHeight, blurPasses: blurPasses)
             progress(Double(index + 1) / Double(tiles.count))
         }
         // Release the input buffer before assembling the output image.
-        let image = try assembleImage(output: output, width: imageWidth, height: imageHeight)
+        var image = try assembleImage(output: output, width: imageWidth, height: imageHeight)
+        if extras.cropRotation != 0 || extras.cropAspect != .free {
+            image = try applyCropRotation(image: image, extras: extras)
+        }
         var outputProperties = properties
         outputProperties[kCGImagePropertyOrientation] = 1
         return try writeImage(image, format: format, quality: quality, stripGPS: stripGPS, properties: outputProperties)
@@ -129,6 +139,13 @@ final class ExportService {
                 bitsPerComponent: 8, bytesPerRow: width * 4,
                 space: CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB(),
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            // Flip the context (top-left origin): a raw bitmap context is
+            // y-up, so drawing without the flip would store the image
+            // upside down and the pipeline (landmarks, tiles, overlay)
+            // would work on a mirrored photo. With the flip, buffer
+            // row 0 is the photo's top row, matching everything else.
+            context.translateBy(x: 0, y: CGFloat(height))
+            context.scaleBy(x: 1, y: -1)
             context.draw(oriented, in: CGRect(x: 0, y: 0, width: width, height: height))
             return true
         }
@@ -153,11 +170,15 @@ final class ExportService {
     }
 
     /// Renders one tile: skin stage (masked blur + blend + grain) then
-    /// warp stage (tile field, background lock, bicubic). Writes only
-    /// the core rect into `output`; halo pixels are read-only context.
+    /// warp stage (tile field, background lock, bicubic) then color
+    /// stage (grade + paint overlay, same math as the live kernel).
+    /// Writes only the core rect into `output`; halo pixels are
+    /// read-only context.
     private func processTile(
         _ tile: TileRect,
         state: RetouchState,
+        extras: ExtraAdjustments,
+        overlay: PaintOverlayBitmap?,
         ops: [WarpOp],
         dabs: [BrushDab],
         landmarks: FaceLandmarks?,
@@ -249,6 +270,36 @@ final class ExportService {
             green = warpImageFloatCubic(src: green, width: haloW, height: haloH, displacement: pixelField)
             blue = warpImageFloatCubic(src: blue, width: haloW, height: haloH, displacement: pixelField)
         }
+        // Color stage: grade + paint overlay on the CORE pixels only
+        // (the halo is discarded context). Same math as the live
+        // colorGrade kernel (EditorCore gradePixel) and the live
+        // blendOverlay kernel (straight-alpha mix). Skipped when the
+        // color extras are neutral.
+        if extras.isColorNeutral == false {
+            let grade = resolveColorGrade(
+                exposure: extras.exposure, contrast: extras.contrast,
+                saturation: extras.saturation, warmth: extras.warmth,
+                preset: extras.filterPreset, intensity: extras.filterIntensity / 100)
+            for y in 0..<tile.h {
+                for x in 0..<tile.w {
+                    let haloIndex = (y + (tile.y - tile.haloY)) * haloW + (x + (tile.x - tile.haloX))
+                    let globalX = tile.x + x
+                    let globalY = tile.y + y
+                    var (r, g, b) = gradePixel(r: red[haloIndex], g: green[haloIndex], b: blue[haloIndex], grade: grade)
+                    if let overlay {
+                        let u = (Float(globalX) + 0.5) / Float(imageWidth)
+                        let v = (Float(globalY) + 0.5) / Float(imageHeight)
+                        let over = sampleOverlay(bitmap: overlay, u: u, v: v)
+                        r = r + (over.r - r) * over.a
+                        g = g + (over.g - g) * over.a
+                        b = b + (over.b - b) * over.a
+                    }
+                    red[haloIndex] = r
+                    green[haloIndex] = g
+                    blue[haloIndex] = b
+                }
+            }
+        }
         // Write the core rect back as UInt8; alpha comes from the input.
         for y in 0..<tile.h {
             for x in 0..<tile.w {
@@ -260,6 +311,83 @@ final class ExportService {
                 output[globalIndex + 3] = input[globalIndex + 3]
             }
         }
+    }
+
+    /// Bilinear sample of a photo-space paint overlay bitmap (straight
+    /// alpha, 0...1 RGBA) at a photo UV. Returns transparent black
+    /// outside the bitmap (the bitmap always covers the full photo).
+    private func sampleOverlay(bitmap: PaintOverlayBitmap, u: Float, v: Float) -> (r: Float, g: Float, b: Float, a: Float) {
+        let width = bitmap.width
+        let height = bitmap.height
+        guard width > 0, height > 0 else { return (0, 0, 0, 0) }
+        let fx = min(max(u, 0), 1) * Float(width - 1)
+        let fy = min(max(v, 0), 1) * Float(height - 1)
+        let x0 = Int(fx)
+        let y0 = Int(fy)
+        let x1 = min(x0 + 1, width - 1)
+        let y1 = min(y0 + 1, height - 1)
+        let tx = fx - Float(x0)
+        let ty = fy - Float(y0)
+        func pixel(_ x: Int, _ y: Int) -> (r: Float, g: Float, b: Float, a: Float) {
+            let index = (y * width + x) * 4
+            return (Float(bitmap.pixels[index]) / 255,
+                    Float(bitmap.pixels[index + 1]) / 255,
+                    Float(bitmap.pixels[index + 2]) / 255,
+                    Float(bitmap.pixels[index + 3]) / 255)
+        }
+        let p00 = pixel(x0, y0), p10 = pixel(x1, y0)
+        let p01 = pixel(x0, y1), p11 = pixel(x1, y1)
+        func mix(_ a: Float, _ b: Float, _ t: Float) -> Float { a + (b - a) * t }
+        let r = mix(mix(p00.r, p10.r, tx), mix(p01.r, p11.r, tx), ty)
+        let g = mix(mix(p00.g, p10.g, tx), mix(p01.g, p11.g, tx), ty)
+        let b = mix(mix(p00.b, p10.b, tx), mix(p01.b, p11.b, tx), ty)
+        let a = mix(mix(p00.a, p10.a, tx), mix(p01.a, p11.a, tx), ty)
+        return (r, g, b, a)
+    }
+
+    /// Applies crop (aspect) + rotation to an assembled export image.
+    /// The aspect crop is a centered crop to the target rect; the
+    /// rotation then rotates the cropped image into its bounding box
+    /// (corners are black — the live preview edge-stretches them
+    /// instead; see the note in the live colorGrade kernel).
+    private func applyCropRotation(image: CGImage, extras: ExtraAdjustments) throws -> CGImage {
+        let width = image.width
+        let height = image.height
+        var cropped = image
+        if extras.cropAspect != .free {
+            let rect = cropRect(aspect: extras.cropAspect, sourceWidth: Float(width), sourceHeight: Float(height))
+            let crop = CGRect(
+                x: CGFloat(rect.min.x) * CGFloat(width),
+                y: CGFloat(rect.min.y) * CGFloat(height),
+                width: CGFloat(rect.size.x) * CGFloat(width),
+                height: CGFloat(rect.size.y) * CGFloat(height))
+            guard let cut = image.cropping(to: crop.integral) else { throw AppError.exportFailed }
+            cropped = cut
+        }
+        guard extras.cropRotation != 0 else { return cropped }
+        let radians = CGFloat(extras.cropRotation) * CGFloat.pi / 180
+        let cosA = abs(cos(radians))
+        let sinA = abs(sin(radians))
+        let outWidth = Int((CGFloat(cropped.width) * cosA + CGFloat(cropped.height) * sinA).rounded(.up))
+        let outHeight = Int((CGFloat(cropped.width) * sinA + CGFloat(cropped.height) * cosA).rounded(.up))
+        guard let context = CGContext(
+            data: nil, width: outWidth, height: outHeight,
+            bitsPerComponent: 8, bytesPerRow: 0,
+            space: CGColorSpace(name: CGColorSpace.displayP3) ?? CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+            throw AppError.exportFailed
+        }
+        // Flip to a top-left origin first (see loadFullResolutionPixels),
+        // then rotate: in the flipped space a positive rotation is
+        // clockwise on screen, matching the live colorGrade kernel.
+        context.translateBy(x: CGFloat(outWidth) / 2, y: CGFloat(outHeight) / 2)
+        context.scaleBy(x: 1, y: -1)
+        context.rotate(by: radians)
+        context.draw(cropped, in: CGRect(
+            x: -CGFloat(cropped.width) / 2, y: -CGFloat(cropped.height) / 2,
+            width: CGFloat(cropped.width), height: CGFloat(cropped.height)))
+        guard let rotated = context.makeImage() else { throw AppError.exportFailed }
+        return rotated
     }
 
     /// Writes a rendered CGImage to a temp file in the requested format,
