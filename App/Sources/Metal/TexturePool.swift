@@ -9,11 +9,25 @@ import Foundation
 import Metal
 
 final class TexturePool {
+    /// Manual Hashable: MTLTextureUsage does not conform to Hashable in
+    /// this SDK, so hash/equals go through the raw values instead.
     private struct Key: Hashable {
         var width: Int
         var height: Int
         var pixelFormat: MTLPixelFormat
         var usage: MTLTextureUsage
+
+        static func == (lhs: Key, rhs: Key) -> Bool {
+            lhs.width == rhs.width && lhs.height == rhs.height
+                && lhs.pixelFormat == rhs.pixelFormat && lhs.usage == rhs.usage
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(width)
+            hasher.combine(height)
+            hasher.combine(pixelFormat.rawValue)
+            hasher.combine(usage.rawValue)
+        }
     }
 
     private let device: MTLDevice
