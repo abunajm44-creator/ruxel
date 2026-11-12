@@ -72,6 +72,15 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
+      - name: Inspect generated project (resources debug)
+        run: |
+          echo "--- PBXResourcesBuildPhase ---"
+          grep -n "PBXResourcesBuildPhase" Ruxel.xcodeproj/project.pbxproj || echo "NO PBXResourcesBuildPhase"
+          echo "--- resource mentions ---"
+          grep -n "Assets.xcassets\|en.lproj\|ar.lproj\|Localizable\|AppIcon" Ruxel.xcodeproj/project.pbxproj || echo "NO resource mentions"
+          echo "--- build phases present ---"
+          grep -o "isa = PBX[a-zA-Z]*BuildPhase" Ruxel.xcodeproj/project.pbxproj | sort | uniq -c
+
       - name: Build (Release, unsigned)
         run: |
           # If the build fails with a missing Metal toolchain component, try:
@@ -88,6 +97,9 @@ jobs:
       - name: Show errors on failure
         if: failure()
         run: grep -E "error:" build.log | sort -u | head -60
+
+      - name: List app bundle contents
+        run: ls -R build/Build/Products/Release-iphoneos/Ruxel.app/
 
       - name: Package IPA
         run: |
