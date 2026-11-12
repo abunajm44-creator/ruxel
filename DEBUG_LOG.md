@@ -1,0 +1,22 @@
+# DEBUG_LOG.md — Ruxel
+
+Every error encountered, its cause, and its fix. Log here before moving
+on — a future failure on the same error should be a lookup, not a new
+investigation.
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| Swift toolchain download in progress (2026-11-12 ~05:06) | Swift not installed on the Ubuntu VM; 837 MB toolchain (`swift-6.1.2-RELEASE-ubuntu24.04`) downloading to `~/tmp/swift` | Waited for the download; **RESOLVED 2026-11-12 ~05:09** — Swift 6.1.2 verified (`swift --version`, target `x86_64-unknown-linux-gnu`). Path: `$HOME/tmp/swift/swift-6.1.2-RELEASE-ubuntu24.04/usr/bin`. See `ENV.md`. |
+| `gh` not authenticated (2026-11-12) | No GitHub credentials on this VM; `gh auth status`: not logged into any GitHub hosts | Not fixable from here — needs the user in the morning (see `MORNING_REPORT.md`). Work locally; do not retry. |
+| GitHub MCP `create_repository` 403 (2026-11-12 ~05:06) | `POST https://api.github.com/user/repos: 403 Resource not accessible by integration` — the GitHub App token cannot create user repos | Do NOT retry. Repo must be created by the user (github.com) or via `gh auth login` + `gh repo create`. See `NOTES-REPO-BLOCKER.md`. |
+| QA harness: mediapipe not available (2026-11-12) | `mediapipe` not installed on the VM (`ModuleNotFoundError`) | Expected and handled: harness falls back to a synthetic landmark grid and records it in `landmarks.json`. Install `pip install mediapipe` only if real detected landmarks are wanted. Not a failure. |
+
+| `skin.texture` semantics flagged ambiguous (2026-11-12) | "texture" could mean kept or removed; `textureKeep01` returned `texture/100` either way | DECIDED: texture = **texture KEPT** (100 = full detail preserved). Evidence: Metal param named `textureKeep` (`smoothed = low + (src - low) * textureKeep`), CPU reference `skinSmoothBlendCPU` and QA harness agree, Auto sets texture 70. No code change needed; documented in `RetouchStateHelpers.textureKeep01`, `SkinAdjustments` doc comment, and `FaceAdjustmentsTests.testTextureKeepSemantics`. |
+| `WarpMathTests.testNoFoldOverFullMaxSliderSet` Jacobian −13.60, Negative −5.53 (2026-11-12) | Summed displacement at full ±100 max sliders folded over. Root cause (empirical, temp diagnostic test): translate ops fold because a translate's gradient is ≈ 1.5·amount/radius. Eye/brow translates in `FaceWarpOps` bypassed the shared `translate()` helper and used raw `mappedAmount` (0.12–0.15) with small IPD-relative radii (~0.08–0.13) → single-op min det ≈ −1.0; eight eye/brow translates overlap. Negative set folded where chin/jaw ops overlap leg translates. | Fix: all translate peak shifts are now IPD-relative (`translate()` multiplies by IPD; `eyeShift`/`browShift` closures `amount * farFactor * ipd`); `brushPushGain` 0.5 → 0.15; `dabSpacing` 0.2 → 0.25 × diameter; slider caps tuned down in `SliderMapping` (eyeLength/eyeSpacing 0.15→0.10, chinLength 0.25→0.10, jawSize 0.30→0.25, faceLength 0.25→0.20, bodySlim 0.35→0.30, etc.); leg length = one shin-midpoint translate per leg (factor 0.10, radius 0.5) instead of 4 knee/ankle translates. Measured 41×41 grid: full max set +0.215 / −0.099 (threshold > 0.05). Tests NOT weakened or deleted; expectations updated to the new caps. |
+| `grainNoise` Int32 overflow trap (2026-11-12) | Hash math on `Int32` trapped on overflow in debug builds | Rewritten with wrapping `UInt32` arithmetic (`&*`, `&+`). |
+| `testTileFieldMatchesFullFieldCrop` failed 16/16 comparisons (2026-11-12) | Test compared a tile field against `displacementFieldGrid`, which samples at grid NODES (`x / (cols-1)`), while `tileDisplacementField` samples at pixel CENTERS (`(x+0.5)/width`) | Not a code bug: different conventions by design (debug overlay vs export warp). Fixed the TEST to build the reference field in the pixel-center convention; documented the difference in `tileDisplacementField`'s doc comment. |
+
+## 2026-11-12 ~16:41 — Run #16 iOS build failure (work, 6254f9a)
+- Error: `App/Sources/Metal/ColorParams.swift:33:20: error: use of 'cropRect' refers to instance method rather than global function 'cropRect(aspect:sourceWidth:sourceHeight:)' in module 'EditorCore'` (only error; Linux tests 128/128 green).
+- Cause: `ColorParams` has a stored property named `cropRect`, so the bare call inside `init` resolved to the property, not the global function. (ExportService's bare `cropRect(` call is fine — no member of that name there.)
+- Fix: qualify the call as `EditorCore.cropRect(...)` in ColorParams.swift.
