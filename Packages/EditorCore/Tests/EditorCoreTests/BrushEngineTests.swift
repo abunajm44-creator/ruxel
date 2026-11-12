@@ -70,13 +70,44 @@ final class BrushEngineTests: XCTestCase {
     }
 
     func testPushDabMovesPixelsAlongDirection() {
+        // A push dab dragged RIGHT must render content to the RIGHT.
+        // The field is the backward map (negated drag direction), so the
+        // test renders a bright block through the stamped field and
+        // checks the centroid moved right, not the field sign.
+        let size = 101
+        var field = [Vec2](repeating: .zero, count: size * size)
+        let dab = BrushDab(center: Vec2(0.5, 0.5), direction: Vec2(1, 0), radius: 0.2, strength: 1, mode: .classic)
+        stampPushDab(field: &field, width: size, height: size, dab: dab)
+        var src = [Float](repeating: 0, count: size * size)
+        for dy in -1...1 {
+            for dx in -1...1 {
+                src[(50 + dy) * size + (50 + dx)] = 1
+            }
+        }
+        let pixelField = field.map { Vec2($0.x * Float(size), $0.y * Float(size)) }
+        let out = warpImageFloatCubic(src: src, width: size, height: size, displacement: pixelField)
+        var sx: Float = 0, total: Float = 0
+        for y in 0..<size {
+            for x in 0..<size {
+                let v = out[y * size + x]
+                guard v > 0 else { continue }
+                sx += Float(x) * v
+                total += v
+            }
+        }
+        let centroidX = sx / total
+        XCTAssertGreaterThan(centroidX, 51.5)
+    }
+
+    func testPushDabFieldIsNegatedDragDirection() {
+        // The stamped field points OPPOSITE to the drag (backward map).
         var field = [Vec2](repeating: .zero, count: 20 * 20)
         let dab = BrushDab(center: Vec2(0.5, 0.5), direction: Vec2(1, 0), radius: 0.2, strength: 1, mode: .classic)
         stampPushDab(field: &field, width: 20, height: 20, dab: dab)
         // Center pixel (10, 10) sits ~0.025 from the dab center; falloff ~0.9,
-        // so displacement ~= 0.9 * radius * gain = 0.027.
+        // so displacement ~= -0.9 * radius * gain = -0.027.
         let center = field[10 * 20 + 10]
-        XCTAssertGreaterThan(center.x, 0.02)
+        XCTAssertLessThan(center.x, -0.02)
         XCTAssertEqual(center.y, 0, accuracy: 0.0001)
         // A far corner is untouched.
         XCTAssertEqual(field[0], Vec2.zero)
