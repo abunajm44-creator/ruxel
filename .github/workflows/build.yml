@@ -76,7 +76,7 @@ jobs:
         run: |
           # If the build fails with a missing Metal toolchain component, try:
           #   xcodebuild -downloadComponent MetalToolchain
-          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+          xcodebuild -project Ruxel.xcodeproj -scheme Ruxel -configuration Release \
             -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
@@ -89,7 +89,7 @@ jobs:
       - name: Package IPA
         run: |
           mkdir Payload
-          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          cp -R build/Build/Products/Release-iphoneos/Ruxel.app Payload/
           zip -qry App.ipa Payload
 
       - name: Upload IPA
